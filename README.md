@@ -1,12 +1,68 @@
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## Getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 🛠️ Installation
+```bash
+git clone https://github.com/YOUR_GITHUB_USERNAME/sudoku-master
+cd sudoku-master
+npm install
+npm run dev
 
-## Expanding the ESLint configuration
+## 🧮 Sudoku Solver Logic (Backtracking in C++)
+```
+#include <iostream>
+#include <vector>
+#include <cmath>
+using namespace std;
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+bool isValid(vector<vector<int>> &board, int row, int col, int num) {
+    // Check row and column
+    for (int i = 0; i < 9; i++) {
+        if (board[row][i] == num || board[i][col] == num)
+            return false;
+    }
+
+    // Check 3x3 subgrid
+    int startRow = row - row % 3;
+    int startCol = col - col % 3;
+
+    for (int i = startRow; i < startRow + 3; i++) {
+        for (int j = startCol; j < startCol + 3; j++) {
+            if (board[i][j] == num)
+                return false;
+        }
+    }
+
+    return true;
+}
+
+bool solveSudoku(vector<vector<int>> &board, int row = 0, int col = 0) {
+    // If we reach the end, return true
+    if (row == 9)
+        return true;
+
+    // Move to next row if column ends
+    if (col == 9)
+        return solveSudoku(board, row + 1, 0);
+
+    // Skip already filled cells
+    if (board[row][col] != 0)
+        return solveSudoku(board, row, col + 1);
+
+    // Try numbers 1–9
+    for (int num = 1; num <= 9; num++) {
+        if (isValid(board, row, col, num)) {
+            board[row][col] = num;
+
+            if (solveSudoku(board, row, col + 1))
+                return true;
+
+            board[row][col] = 0; // Backtrack
+        }
+    }
+
+    return false; // No solution found
+}
+
