@@ -9,6 +9,12 @@
   }
 }
 
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
 .game-container {
   display: flex;
   flex-direction: column;
@@ -21,6 +27,19 @@
   overflow: hidden;
 }
 
+.performance-indicator {
+  background: linear-gradient(45deg, #00c851, #007e33);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 10px rgba(0, 200, 81, 0.3);
+  animation: pulse 2s infinite;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
 .game-title {
   color: #2c3e50;
   font-size: 3.5rem;
@@ -29,6 +48,7 @@
   margin-bottom: 20px;
   text-align: center;
   background: linear-gradient(45deg, #2c3e50, #3498db);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 2px 4px 8px rgba(0,0,0,0.1);

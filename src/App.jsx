@@ -1,10 +1,10 @@
 import React from 'react'
-import { useEffect, useState } from 'react';
-import axios from 'axios'
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Button from './Button';
 import { solveSudoku } from './Solver';
 import { RemoveScroll } from 'react-remove-scroll';
 import toast, { Toaster } from 'react-hot-toast';
+import { sudokuService } from './services/sudokuService';
 import './App.css';
 
 const App = () => {
@@ -12,26 +12,48 @@ const App = () => {
   const [originalBoard, setOriginalBoard] = useState([]); // Track original puzzle
   const [solved, setSolved] = useState(0);
   const [change, setChange] = useState(0);
-  const [difficulty, setDifficulty] = useState("random")
+  const [difficulty, setDifficulty] = useState("medium");
+  const [loading, setLoading] = useState(false);
+  const [performanceMetrics, setPerformanceMetrics] = useState(null);
   
-  const fetchBoard = async () => {
+  // Optimized board fetching with performance monitoring
+  const fetchBoard = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await axios.get('https://sugoku.onrender.com/board', {
-        params: { difficulty: difficulty },
-      });
-      setBoard(res.data.board);
-      setOriginalBoard(res.data.board.map(row => [...row])); // Store original
-      toast.success('Board Refreshed');
+      const result = await sudokuService.fetchBoard(difficulty);
+      
+      setBoard(result.board);
+      setOriginalBoard(result.board.map(row => [...row])); // Store original
+      
+      // Show performance feedback
+      if (result.fromCache) {
+        toast.success('Board loaded instantly from cache!');
+      } else {
+        toast.success(`Board loaded in ${result.loadTime}ms`);
+      }
+      
+      setPerformanceMetrics(sudokuService.getPerformanceMetrics());
+      
     } catch (error) {
       console.error('Error fetching board:', error);
+      toast.error('Failed to load board. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [difficulty]);
+
+  // Debounced fetch for rapid difficulty changes
+  const debouncedFetchBoard = useCallback(
+    sudokuService.fetchBoardDebounced,
+    []
+  );
 
   useEffect(() => {
     fetchBoard();
-  }, [change]);
+  }, [change, fetchBoard]);
 
-  const handleSolve = () => {
+  // Memoized handlers for better performance
+  const handleSolve = useCallback(() => {
     // Check if puzzle is completely filled
     for (let i = 0; i < 9; i++) {
       for (let j = 0; j < 9; j++) {
@@ -65,9 +87,9 @@ const App = () => {
       setSolved(2);
       toast.error('Solution has mistakes!');
     }
-  };
+  }, [board]);
 
-  const handleSolution = () => {
+  const handleSolution = useCallback(() => {
     const boardCopy = board.map(row => [...row]); 
     const success = solveSudoku(boardCopy); 
     if (success) {
@@ -76,12 +98,25 @@ const App = () => {
     } else {
       toast.error('No possible solution!');
     }
-  };
+  }, [board]);
 
-  const handleNew = () => {
-    setChange(change+1)
-    setSolved(0)
-  };
+  const handleNew = useCallback(() => {
+    setChange(change + 1);
+    setSolved(0);
+  }, [change]);
+
+  const handleDifficultyChange = useCallback((newDifficulty) => {
+    setDifficulty(newDifficulty);
+    setSolved(0);
+    // Use debounced fetch for rapid changes
+    debouncedFetchBoard(newDifficulty, (result) => {
+      setBoard(result.board);
+      setOriginalBoard(result.board.map(row => [...row]));
+      if (result.fromCache) {
+        toast.success('Board switched instantly!');
+      }
+    });
+  }, [debouncedFetchBoard]);
 
   return (
     <RemoveScroll enabled={true}>
@@ -94,6 +129,13 @@ const App = () => {
           </span>
         </h1>
         
+        {/* Performance indicator */}
+        {performanceMetrics && (
+          <div className="performance-indicator">
+            🚀 Optimized: {performanceMetrics.preloadedBoards} boards preloaded
+          </div>
+        )}
+        
         <div className="game-board-container">
           <div className="game-controls">
             <div className="difficulty-selector">
@@ -103,12 +145,9 @@ const App = () => {
               <select
                 id="difficulty"
                 value={difficulty}
-                onChange={e => {
-                  setDifficulty(e.target.value);
-                  setChange(change + 1);
-                  setSolved(0);
-                }}
+                onChange={e => handleDifficultyChange(e.target.value)}
                 className="difficulty-select"
+                disabled={loading}
               >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
@@ -116,8 +155,12 @@ const App = () => {
               </select>
             </div>
             
-            <button onClick={handleNew} className="new-game-btn">
-              New Game
+            <button 
+              onClick={handleNew} 
+              className="new-game-btn"
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'New Game'}
             </button>
           </div>
           
