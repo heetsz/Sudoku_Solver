@@ -9,6 +9,7 @@ import './App.css';
 
 const App = () => {
   const [board, setBoard] = useState([]);
+  const [originalBoard, setOriginalBoard] = useState([]); // Track original puzzle
   const [solved, setSolved] = useState(0);
   const [change, setChange] = useState(0);
   const [difficulty, setDifficulty] = useState("random")
@@ -19,6 +20,7 @@ const App = () => {
         params: { difficulty: difficulty },
       });
       setBoard(res.data.board);
+      setOriginalBoard(res.data.board.map(row => [...row])); // Store original
       toast.success('Board Refreshed');
     } catch (error) {
       console.error('Error fetching board:', error);
@@ -30,22 +32,39 @@ const App = () => {
   }, [change]);
 
   const handleSolve = () => {
-    const boardCopy = board.map(row => [...row]);
-    const isSolved = solveSudoku(boardCopy);
-
+    // Check if puzzle is completely filled
     for (let i = 0; i < 9; i++) {
       for (let j = 0; j < 9; j++) {
         if (board[i][j] === 0) {
-          toast.error('Fill input first');
-          return;
-        }
-        if (board[i][j] !== boardCopy[i][j]) {
-          setSolved(2); 
+          toast.error('Fill all cells first');
           return;
         }
       }
     }
-    setSolved(1);
+
+    // Create a copy to test if the current board is valid
+    const boardCopy = board.map(row => [...row]);
+    const isSolved = solveSudoku(boardCopy);
+    
+    // Check if current board matches a valid solution
+    let isCorrect = true;
+    for (let i = 0; i < 9; i++) {
+      for (let j = 0; j < 9; j++) {
+        if (board[i][j] !== boardCopy[i][j]) {
+          isCorrect = false;
+          break;
+        }
+      }
+      if (!isCorrect) break;
+    }
+
+    if (isCorrect && isSolved) {
+      setSolved(1);
+      toast.success('Congratulations! Solution is correct!');
+    } else {
+      setSolved(2);
+      toast.error('Solution has mistakes!');
+    }
   };
 
   const handleSolution = () => {
@@ -120,7 +139,7 @@ const App = () => {
                             >
                               <Button
                                 placeholder={cell}
-                                edit={cell !== 0}
+                                edit={originalBoard.length > 0 && originalBoard[rowIndex][colIndex] !== 0}
                                 row={rowIndex}
                                 col={colIndex}
                                 setBoard={setBoard}
